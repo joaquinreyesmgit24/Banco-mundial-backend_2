@@ -47,10 +47,10 @@ const createSurvey = async (req, res) => {
         if (surveyData.Q_1 === 1) eligibilityCode = "8";
         else if (surveyData.Q_2 === -9) eligibilityCode = "8";
         else if (surveyData.Q_3 !== null && surveyData.Q_3 < 5) eligibilityCode = "5";
-        else if (incidenceId === 1) eligibilityCode = "1";
-        else if (incidenceId === 2) eligibilityCode = "2";
-        else if (incidenceId === 3) eligibilityCode = "3";
-        else if (incidenceId === 4) eligibilityCode = "4";
+        else if (incidenceId === 1 && surveyData.Q_1 != 1 && surveyData.Q_2 !=-9 && (surveyData.Q_3 !== null && surveyData.Q_3 >= 5)) eligibilityCode = "1";
+        else if (incidenceId === 2 && surveyData.Q_1 != 1 && surveyData.Q_2 !=-9 && (surveyData.Q_3 !== null && surveyData.Q_3 >= 5)) eligibilityCode = "2";
+        else if (incidenceId === 3 && surveyData.Q_1 != 1 && surveyData.Q_2 !=-9 && (surveyData.Q_3 !== null && surveyData.Q_3 >= 5)) eligibilityCode = "3";
+        else if (incidenceId === 4 && surveyData.Q_1 != 1 && surveyData.Q_2 !=-9 && (surveyData.Q_3 !== null && surveyData.Q_3 >= 5)) eligibilityCode = "4";
 
         // Lógica para cambiar el estado de la encuesta si es rechazada
         if (eligibilityCode=="8"||eligibilityCode=="5") {

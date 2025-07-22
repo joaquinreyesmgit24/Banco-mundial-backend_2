@@ -87,7 +87,7 @@ const createCall = async (req, res) => {
             const rescheduledCreate = await Rescheduled.create({ callId: callCreate.id, date: rescheduled.date,status:true, time: rescheduled.time }, { transaction: t });
         }
 
-        if (![1, 2, 3, 4, 7].includes(incidenceId)) {  
+        if (![1, 2, 3, 4,6, 7].includes(incidenceId)) {  
             const reportData = {
                 countryName: company.country.name,
                 countryCode: company.country.code,

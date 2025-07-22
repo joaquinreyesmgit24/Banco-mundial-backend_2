@@ -30,6 +30,14 @@ const Survey = db.define('surveys',{
         type:DataTypes.STRING,
         allowNull:true
     },
+    Q_8:{
+        type:DataTypes.STRING,
+        allowNull:true
+    },
+    Q_9:{
+        type:DataTypes.STRING,
+        allowNull:true
+    },
     status:{
         type:DataTypes.STRING,
         allowNull:true

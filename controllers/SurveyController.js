@@ -6,7 +6,7 @@ const createSurvey = async (req, res) => {
     const t = await db.transaction();
     try {
         const {
-            Q_1, Q_2, Q_3, Q_4, Q_5, Q_6, Q_7,companyId, selectedMainStatus, selectedSubStatus,
+            Q_1, Q_2, Q_3, Q_4, Q_5, Q_6, Q_7,Q_8,Q_9,companyId, selectedMainStatus, selectedSubStatus,
             companyStreetUpdate, incidenceId
         } = req.body;
 
@@ -32,6 +32,8 @@ const createSurvey = async (req, res) => {
             Q_5: Q_5 || null,
             Q_6: Q_6 || null,
             Q_7: Q_7 || null,
+            Q_8: Q_8 || null,
+            Q_9: Q_9 || null,
             companyId: companyId ? parseInt(companyId) : null,
             status: 'Confirmada'
         };

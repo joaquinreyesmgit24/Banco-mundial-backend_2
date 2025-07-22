@@ -15,7 +15,7 @@ const Survey = db.define('surveys',{
         allowNull:true
     },
     Q_4:{
-        type:DataTypes.DATE,
+        type:DataTypes.STRING,
         allowNull:true
     },
     Q_5:{

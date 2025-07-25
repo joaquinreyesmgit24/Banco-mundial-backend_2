@@ -109,7 +109,7 @@ const createCall = async (req, res) => {
                 contactPerson: "",
                 contactPosition: "",
                 phoneNumberOne: company.phoneNumberOne,
-                phoneNumberSecond: company.phoneNumberSecond || "",
+                phoneNumberSecond: company.phoneNumberSecond || null,
                 faxNumber: company.faxNumber,
                 emailAddress: company.emailAddress,
                 web: company.web,

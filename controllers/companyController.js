@@ -1,5 +1,5 @@
 import { check, validationResult } from 'express-validator'
-import { Company, SampleSize, SampleSector, Panel,Call, Country,Region, Sequelize, Report } from '../models/index.js'
+import { Company, SampleSize, SampleSector, Panel,Call, Country,Region, Sequelize, Report, Rescheduled } from '../models/index.js'
 import moment from 'moment'
 import { Op } from 'sequelize';
 import xlsx from 'xlsx';
@@ -399,7 +399,7 @@ const updateCompany = async (req, res) => {
 }
 const listCompanies = async (req, res) => {
     try {
-         const companies = await Company.findAll({
+        const companies = await Company.findAll({
             include: [
                 {
                     model: SampleSize,
@@ -523,13 +523,23 @@ const getRandomCompany = async (req, res) => {
                     model: Call,
                     as: 'calls',
                     attributes: ['date', 'phone'],
-                    required: false
+                    required: false,
+                    include: [
+                        {
+                            model: Rescheduled,  // Relación con Rescheduled
+                            as: 'rescheduleds',
+                            attributes: ['id'],  // Traemos el ID de las reprogramaciones
+                            required: false  // Permitimos que la llamada no tenga reprogramación
+                        }
+                    ]
                 }
             ]
         });
 
-        companies = companies.filter(company => !company.reports || company.reports.length === 0);
-
+        companies = companies.filter(company => 
+            (!company.reports || company.reports.length === 0) &&  // Sin reportes
+            !company.calls.some(call => call.rescheduleds && call.rescheduleds.length > 0)  // Sin llamadas reprogramadas
+        );
         console.log("Empresas sin report:", companies.map(c => c.id));
 
         if (companies.length === 0) {

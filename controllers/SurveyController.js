@@ -114,9 +114,9 @@ const createSurvey = async (req, res) => {
 const listSurveys = async (req, res) => {
     try {
         const surveys = await Survey.findAll({
-            include: [{
-                model: Company,
-            }]
+            required:true,
+            include: Company
+
         });
         res.status(200).json({ surveys });
     } catch (error) {

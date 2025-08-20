@@ -1,9 +1,19 @@
 import { check, validationResult } from 'express-validator'
-import { Call, Incidence, Company, Rescheduled, Sequelize, Report, SampleSize,SampleSector, Country, Region, Panel } from '../models/index.js'
+import { Call, Incidence, Company, Rescheduled, Sequelize, Report, SampleSize, SampleSector, Country, Region, Panel }
+    from '../models/index.js'
+import { transporter } from '../helpers/emailTransporter.js';
 import db from '../config/db.js'
 import moment from 'moment'
 import { Op } from 'sequelize';
 import { DateTime } from 'luxon';
+import { fileURLToPath } from 'url';
+import { dirname, join,resolve } from 'path'; // Asegúrate de importar 'join' desde 'path'
+
+
+// Obtener el __dirname en ES6 modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 
 
 const createCall = async (req, res) => {
@@ -20,7 +30,7 @@ const createCall = async (req, res) => {
         if (incidenceId == 7) {
             await check('rescheduled.date').notEmpty().withMessage('La fecha de reprogramación de llamado no puede ir vacía').run(req);
             await check('rescheduled.time').notEmpty().withMessage('La hora de reprogramación de llamado no puede ir vacía').run(req);
-        }
+}
         let result = validationResult(req);
         if (!result.isEmpty()) {
             return res.status(400).json({ errors: result.array() });
@@ -33,7 +43,7 @@ const createCall = async (req, res) => {
         if (!incidenceId) {
             return res.status(400).json({ error: 'Debe seleccionar una incidencia' });
         }
-    
+
 
         const company = await Company.findByPk(companyId, {
             include: [
@@ -44,7 +54,7 @@ const createCall = async (req, res) => {
                 { model: Panel, attributes: ['code', 'description'] },
             ]
         });
-        
+
         if (!company) {
             return res.status(400).json({ error: 'La empresa no existe' });
         }
@@ -79,15 +89,18 @@ const createCall = async (req, res) => {
         }
 
         // Crear la llamada dentro de la transacción
-        const callCreate = await Call.create({ phone, comment, date:utcDate, companyId, incidenceId }, { transaction: t });
+        const callCreate = await Call.create({ phone, comment, date: utcDate, companyId, incidenceId }, { transaction: t });
 
         // Si incidenceId es 3, crear también el registro en Rescheduled
 
         if (incidenceId == 7) {
-            const rescheduledCreate = await Rescheduled.create({ callId: callCreate.id, date: rescheduled.date,status:true, time: rescheduled.time }, { transaction: t });
+            const rescheduledCreate = await Rescheduled.create({
+                callId: callCreate.id, date: rescheduled.date, status: true, time:
+                    rescheduled.time
+            }, { transaction: t });
         }
 
-        if (![1, 2, 3, 4,6, 7].includes(incidenceId)) {  
+        if (![1, 2, 3, 4, 6, 7].includes(incidenceId)) {
             const reportData = {
                 countryName: company.country.name,
                 countryCode: company.country.code,
@@ -99,7 +112,7 @@ const createCall = async (req, res) => {
                 sectorStratificationCode: company.sampleSector.code,
                 panelName: company.panel.description,
                 panelCode: company.panel.code,
-                eligibilityCode:"",
+                eligibilityCode: "",
                 statusCode: "",
                 rejectionCode: "",
                 companyName: company.name,
@@ -116,7 +129,7 @@ const createCall = async (req, res) => {
                 companyStreetUpdate: companyStreetUpdate || null,
                 companyId: company.id
             };
-            if(incidenceId){
+            if (incidenceId) {
                 reportData.eligibilityCode = incidenceId;
             }
             await Report.create(reportData, { transaction: t });
@@ -130,12 +143,12 @@ const createCall = async (req, res) => {
             include: [{ model: Incidence, required: true }]
         });
 
-        if (incidenceId != 1 && incidenceId != 2 && incidenceId != 3 && incidenceId != 4 && 
+        if (incidenceId != 1 && incidenceId != 2 && incidenceId != 3 && incidenceId != 4 &&
             incidenceId != 7
-         ) {
+        ) {
             return res.status(200).json({ msg: 'Se ha guardado correctamente la incidencia', callCreate, calls });
         }
-        if (incidenceId == 1 ||incidenceId == 2 || incidenceId == 3  ||incidenceId == 4  ) {
+        if (incidenceId == 1 || incidenceId == 2 || incidenceId == 3 || incidenceId == 4) {
             return res.status(200).json({ msg: 'Se ha empezado la encuesta', callCreate, calls });
         }
         if (incidenceId == 7) {
@@ -154,6 +167,50 @@ const listIncidents = async (req, res) => {
         res.status(500).json({ error: 'Error al listar las incidencias' });
     }
 }
+// Función para enviar el correo con múltiples archivos y una imagen embebida
+const sendEmail = async (req, res) => {
+    const { to, companyName } = req.body; // El destinatario es enviado desde el frontend
+
+    // Rutas de los archivos que ya están en el servidor
+    const file1 = resolve(__dirname, "../folders/Carta_Invitacion_CHI_Invitation_Letter_Fresh_ESP.pdf");
+    const file2 = resolve(__dirname, "../folders/Chile_2010.pdf");
+    const mailOptions = {
+        from: process.env.OUTLOOK_EMAIL,
+        to: to,
+        subject: `Invitación a participar en la Encuesta WBES 2025 - ${companyName}`,
+        html: `
+            <p>Estimado/a,</p>
+            <p>Junto con saludar, le escribe Marion Cepeda, profesional de la Consultora DATAVOZ <a href="https://datavoz.cl/">https://datavoz.cl/</a>, empresa encargada por el Banco Mundial para el levantamiento de la WBES 2025. Este correo tiene como finalidad extender la siguiente invitación para que la Empresa ${companyName} forme parte de las WBES 2025.</p>
+            <p>El siguiente mail es para invitarle a participar en la versión actual de la encuesta WBES Encuesta Empresarial del Banco Mundial en Chile, la cual ya fue levantada en el año 2010, lo que permitió contar con información relevante respecto al entorno empresarial que enfrentan las empresas en el país.</p>
+            <p>Para mayor detalle, las Encuestas Empresariales del Banco Mundial (WBES) son encuestas a altos directivos/as y dueños/as de empresas que se han aplicado en más de 170 países, las que contribuyen a contar con información sobre el entorno empresarial, acceso a financiamiento, facilidad para hacer negocios, entre otros.</p>
+            <p>Comparto link de acceso a WBES del Banco Mundial en caso que requiera más información <a href="https://espanol.enterprisesurveys.org/es/enterprisesurveys">https://espanol.enterprisesurveys.org/es/enterprisesurveys</a>.</p>
+            <p>A continuación, adjunto carta de invitación a participar en el presente estudio, y estaré atenta para resolver sus dudas e inquietudes, y en lo posible, agendar un horario para realizar una entrevista.</p>
+            <p>Adicionalmente, pongo a su disposición, una nota de El Mostrador del día 04 de abril de 2025 en que se menciona el estudio al que tanto usted como su empresa están siendo invitados.</p>
+            <p><a href="https://www.elmostrador.cl/noticias/pais/2025/04/04/empresas-chilenas-bajo-la-lupa-del-banco-mundial-encuesta-sondeara-al-sector-privado-tras-15-anos/">https://www.elmostrador.cl/noticias/pais/2025/04/04/empresas-chilenas-bajo-la-lupa-del-banco-mundial-encuesta-sondeara-al-sector-privado-tras-15-anos/</a></p>
+            <p>Muchas gracias y quedo atenta a cualquier comentario.</p>
+            <p>Saludos,</p>
+        `,
+        attachments: [
+            {
+                filename: "Carta Invitación CHI Invitation Letter_Fresh_ESP.pdf",
+                path: file1,
+            },
+            {
+                filename: "Chile-2010.pdf",
+                path: file2,
+            },
+        ]
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        res.status(200).json({ ok: true, msg: "Correo enviado" });
+    } catch (error) {
+        console.error("Error al enviar el correo: ", error);
+        res.status(500).json({ error: "Error al enviar el correo" });
+    }
+};
+
 
 const listCallsByCompany = async (req, res) => {
     try {
@@ -216,7 +273,7 @@ const listRescheduledByUserId = async (req, res) => {
         // Obtener las reschedulaciones filtrando por el assignedId de las compañías asociadas al usuario
         const rescheduleds = await Rescheduled.findAll({
             where: {
-                status: true  // Filtrar las reprogramaciones por el status
+                status: true // Filtrar las reprogramaciones por el status
             },
             include: [
                 {
@@ -224,11 +281,11 @@ const listRescheduledByUserId = async (req, res) => {
                     include: {
                         model: Company,
                         where: {
-                            assignedId: userId  // Filtrar las compañías por assignedId del usuario
+                            assignedId: userId // Filtrar las compañías por assignedId del usuario
                         },
-                        required: true  // Aseguramos que la relación de la compañía exista
+                        required: true // Aseguramos que la relación de la compañía exista
                     },
-                    required: true  // Aseguramos que la relación de la llamada exista
+                    required: true // Aseguramos que la relación de la llamada exista
                 }
             ]
         });
@@ -267,5 +324,6 @@ export {
     listCallsByCompany,
     deleteCall,
     listRescheduledByUserId,
-    updateRescheduledStatus
+    updateRescheduledStatus,
+    sendEmail
 }

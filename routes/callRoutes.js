@@ -1,11 +1,12 @@
 import express from 'express'
 
-import {listIncidents, createCall, listCallsByCompany, deleteCall, listRescheduledByUserId, updateRescheduledStatus  } from '../controllers/CallController.js'
+import {listIncidents, createCall, listCallsByCompany, deleteCall, listRescheduledByUserId, updateRescheduledStatus, sendEmail  } from '../controllers/CallController.js'
 import {getRandomCompany, getSelectCompanyToCallById} from '../controllers/CompanyController.js'
 
 const router = express.Router()
 
 router.post('/create-call', createCall)
+router.post('/send-email', sendEmail)
 router.get('/list-incidents', listIncidents)
 router.get('/get-random-company/:userId', getRandomCompany)
 router.get('/list-calls/:companyId', listCallsByCompany)

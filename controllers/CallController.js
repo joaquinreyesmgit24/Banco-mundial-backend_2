@@ -23,7 +23,7 @@ const createCall = async (req, res) => {
         await check('date').notEmpty().withMessage('La fecha no es válida').run(req);
 
 
-        const { phone, comment, date, companyId, incidenceId, rescheduled, companyStreetUpdate } = req.body;
+        const { phone, comment, date, companyId, incidenceId, rescheduled, companyStreetUpdate, selectedSubStatus} = req.body;
 
         const utcDate = DateTime.fromFormat(date, "yyyy-MM-dd HH:mm:ss", { zone: "America/Santiago" }).toUTC().toISO();
 
@@ -114,7 +114,7 @@ const createCall = async (req, res) => {
                 panelCode: company.panel.code,
                 eligibilityCode: "",
                 statusCode: "",
-                rejectionCode: "",
+                rejectionCode: selectedSubStatus ? selectedSubStatus: "",
                 companyName: company.name,
                 locality: "",
                 address: company.street,

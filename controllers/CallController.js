@@ -138,21 +138,17 @@ const createCall = async (req, res) => {
         // Confirmar la transacción si todo está bien
         await t.commit();
 
-        // Obtener todas las llamadas con su incidencia
-        const calls = await Call.findAll({
-            include: [{ model: Incidence, required: true }]
-        });
 
         if (incidenceId != 1 && incidenceId != 2 && incidenceId != 3 && incidenceId != 4 &&
             incidenceId != 7
         ) {
-            return res.status(200).json({ msg: 'Se ha guardado correctamente la incidencia', callCreate, calls });
+            return res.status(200).json({ msg: 'Se ha guardado correctamente la incidencia', callCreate });
         }
         if (incidenceId == 1 || incidenceId == 2 || incidenceId == 3 || incidenceId == 4) {
-            return res.status(200).json({ msg: 'Se ha empezado la encuesta', callCreate, calls });
+            return res.status(200).json({ msg: 'Se ha empezado la encuesta', callCreate });
         }
         if (incidenceId == 7) {
-            return res.status(200).json({ msg: 'Se ha reprogramado la llamada', callCreate, rescheduled, calls });
+            return res.status(200).json({ msg: 'Se ha reprogramado la llamada', callCreate, rescheduled });
         }
     } catch (error) {
         await t.rollback(); // Revertir transacción en caso de error

@@ -266,31 +266,80 @@ const deleteCall = async (req, res) => {
 const listRescheduledByUserId = async (req, res) => {
     try {
         const { userId } = req.params;
-        // Obtener las reschedulaciones filtrando por el assignedId de las compañías asociadas al usuario
+
+        // Traemos las reprogramaciones con sus llamadas y compañías relacionadas
         const rescheduleds = await Rescheduled.findAll({
-            where: {
-                status: true // Filtrar las reprogramaciones por el status
-            },
+            attributes: { exclude: ['status'] },
             include: [
                 {
                     model: Call,
-                    include: {
-                        model: Company,
-                        where: {
-                            assignedId: userId // Filtrar las compañías por assignedId del usuario
-                        },
-                        required: true // Aseguramos que la relación de la compañía exista
-                    },
-                    required: true // Aseguramos que la relación de la llamada exista
+                    as: 'call',
+                    required: true,
+                    include: [
+                        {
+                            model: Company,
+                            as: 'company',
+                            where: { assignedId: userId },
+                            required: true,
+                            include: [
+                                {
+                                    model: Report,
+                                    as: 'reports',
+                                    attributes: ['id'],
+                                    required: false
+                                },
+                                {
+                                    model: Call,
+                                    as: 'calls',
+                                    attributes: ['date', 'phone'],
+                                    required: false,
+                                    include: [
+                                        {
+                                            model: Rescheduled,
+                                            as: 'rescheduleds',
+                                            attributes: ['id'],
+                                            required: false
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
                 }
-            ]
+            ],
+            subQuery: false
         });
 
-        res.status(200).json({ rescheduleds })
+        // Post-filtro igual al que usaste en getRandomCompany
+        const filtered = rescheduleds.filter(r => {
+            const company = r.call.company;
+            if (!company) return false;
+
+            // Sin reportes
+            if (company.reports && company.reports.length > 0) return false;
+
+            // Cumple con llamadas disponibles
+            const callsByPhoneOne = company.calls.filter(call => call.phone === company.phoneNumberOne).length;
+            const callsByPhoneTwo = company.calls.filter(call => call.phone === company.phoneNumberSecond).length;
+
+            const remainingCallsPhoneOne = company.numberPhoneCallsOne - callsByPhoneOne;
+            const remainingCallsPhoneTwo = company.numberPhoneCallsSecond - callsByPhoneTwo;
+
+            if (remainingCallsPhoneOne <= 0 && remainingCallsPhoneTwo <= 0) return false;
+
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            return res.status(404).json({ message: "No hay reprogramaciones disponibles." });
+        }
+
+        res.status(200).json({ rescheduleds: filtered });
     } catch (error) {
         console.error('Error al obtener las reprogramaciones:', error);
+        res.status(500).json({ message: "Error interno del servidor." });
     }
-}
+};
 const updateRescheduledStatus = async (req, res) => {
     try {
         const { rescheduledId } = req.params; // Obtén el ID de la reprogramación desde los parámetros de la URL

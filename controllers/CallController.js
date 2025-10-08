@@ -7,7 +7,7 @@ import moment from 'moment'
 import { Op } from 'sequelize';
 import { DateTime } from 'luxon';
 import { fileURLToPath } from 'url';
-import { dirname, join,resolve } from 'path'; // Asegúrate de importar 'join' desde 'path'
+import { dirname, join, resolve } from 'path'; // Asegúrate de importar 'join' desde 'path'
 
 
 // Obtener el __dirname en ES6 modules
@@ -23,14 +23,14 @@ const createCall = async (req, res) => {
         await check('date').notEmpty().withMessage('La fecha no es válida').run(req);
 
 
-        const { phone, comment, date, companyId, incidenceId, rescheduled, companyStreetUpdate, selectedSubStatus} = req.body;
+        const { phone, comment, date, companyId, incidenceId, rescheduled, companyStreetUpdate, selectedSubStatus } = req.body;
 
         const utcDate = DateTime.fromFormat(date, "yyyy-MM-dd HH:mm:ss", { zone: "America/Santiago" }).toUTC().toISO();
 
         if (incidenceId == 7) {
             await check('rescheduled.date').notEmpty().withMessage('La fecha de reprogramación de llamado no puede ir vacía').run(req);
             await check('rescheduled.time').notEmpty().withMessage('La hora de reprogramación de llamado no puede ir vacía').run(req);
-}
+        }
         let result = validationResult(req);
         if (!result.isEmpty()) {
             return res.status(400).json({ errors: result.array() });
@@ -114,7 +114,7 @@ const createCall = async (req, res) => {
                 panelCode: company.panel.code,
                 eligibilityCode: "",
                 statusCode: "",
-                rejectionCode: selectedSubStatus ? selectedSubStatus: "",
+                rejectionCode: selectedSubStatus ? selectedSubStatus : "",
                 companyName: company.name,
                 locality: "",
                 address: company.street,
@@ -359,6 +359,84 @@ const updateRescheduledStatus = async (req, res) => {
         res.status(500).json({ message: "Error interno del servidor" });
     }
 }
+const deleteRescheduled = async (req, res) => {
+        try {
+        const { rescheduledId, userId } = req.params;
+
+        // Eliminar la reprogramación
+        const rescheduled = await Rescheduled.findOne({ where: { id: rescheduledId } });
+        if (!rescheduled) {
+            return res.status(400).json({ error: 'La reprogramación no existe' });
+        }
+        await rescheduled.destroy();
+
+        // Traer las reprogramaciones filtradas por usuario
+        const rescheduleds = await Rescheduled.findAll({
+            attributes: { exclude: ['status'] },
+            include: [
+                {
+                    model: Call,
+                    as: 'call',
+                    required: true,
+                    include: [
+                        {
+                            model: Company,
+                            as: 'company',
+                            where: { assignedId: userId },
+                            required: true,
+                            include: [
+                                {
+                                    model: Report,
+                                    as: 'reports',
+                                    attributes: ['id'],
+                                    required: false
+                                },
+                                {
+                                    model: Call,
+                                    as: 'calls',
+                                    attributes: ['date', 'phone'],
+                                    required: false,
+                                    include: [
+                                        {
+                                            model: Rescheduled,
+                                            as: 'rescheduleds',
+                                            attributes: ['id'],
+                                            required: false
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            subQuery: false
+        });
+
+        // Aplicar el mismo post-filtro de disponibilidad
+        const filtered = rescheduleds.filter(r => {
+            const company = r.call.company;
+            if (!company) return false;
+
+            if (company.reports && company.reports.length > 0) return false;
+
+            const callsByPhoneOne = company.calls.filter(call => call.phone === company.phoneNumberOne).length;
+            const callsByPhoneTwo = company.calls.filter(call => call.phone === company.phoneNumberSecond).length;
+
+            const remainingCallsPhoneOne = company.numberPhoneCallsOne - callsByPhoneOne;
+            const remainingCallsPhoneTwo = company.numberPhoneCallsSecond - callsByPhoneTwo;
+
+            return remainingCallsPhoneOne > 0 || remainingCallsPhoneTwo > 0;
+        });
+
+
+        res.status(200).json({  msg: 'Reprogramación eliminada correctamente', rescheduleds: filtered });
+    } catch (error) {
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+
+}
+
 
 
 
@@ -370,5 +448,6 @@ export {
     deleteCall,
     listRescheduledByUserId,
     updateRescheduledStatus,
-    sendEmail
+    sendEmail,
+    deleteRescheduled
 }

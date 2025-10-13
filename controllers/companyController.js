@@ -1,5 +1,5 @@
 import { check, validationResult } from 'express-validator'
-import { Company, SampleSize, SampleSector, Panel,Call, Country,Region, Sequelize, Report, Rescheduled } from '../models/index.js'
+import { Company, SampleSize, SampleSector, Panel,Call, Country,Region, Sequelize, Report, Rescheduled, companyDelete } from '../models/index.js'
 import moment from 'moment'
 import { Op } from 'sequelize';
 import xlsx from 'xlsx';
@@ -498,6 +498,7 @@ const deleteCompany = async (req, res) => {
         res.status(500).json({ error: 'Error al eliminar la empresa' });
     }
 }
+
 const getRandomCompany = async (req, res) => {
     try {
         const { userId } = req.params;
@@ -505,9 +506,17 @@ const getRandomCompany = async (req, res) => {
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
 
-        // Traemos solo lo necesario, ya filtrado desde la BD
+        // Traer los IDs de las empresas que no deben mostrarse
+        const deletedCompanies = await companyDelete.findAll({
+            attributes: ['id'],
+        });
+
+        const excludedIds = deletedCompanies.map(dc => dc.id);
+
+        //  Consulta optimizada: excluir esas empresas desde el principio
         const companies = await Company.findAll({
             where: {
+                id: { [Op.notIn]: excludedIds },
                 [Op.or]: [
                     { assignedId: userId },
                     { assignedId: null }
@@ -536,20 +545,18 @@ const getRandomCompany = async (req, res) => {
                 }
             ],
             subQuery: false,
-            limit: 200, // 🚀 no cargamos todo, solo un batch
-            order: Sequelize.literal('RAND()') // selección aleatoria desde SQL
+            limit: 200,
+            order: Sequelize.literal('RAND()') // Selección aleatoria desde SQL
         });
 
         if (!companies || companies.length === 0) {
             return res.status(404).json({ message: "No hay empresas disponibles en este momento." });
         }
 
-        // Post-filtros mínimos (lo que no podemos llevar 100% a SQL fácilmente)
+        //  Filtros adicionales (reglas de negocio)
         const filtered = companies.filter(company => {
-            // Sin reportes
             if (company.reports && company.reports.length > 0) return false;
 
-            // Sin llamadas reprogramadas
             if (company.calls.some(call => call.rescheduleds && call.rescheduleds.length > 0)) return false;
 
             const callsByPhoneOne = company.calls.filter(call => call.phone === company.phoneNumberOne).length;
@@ -576,10 +583,10 @@ const getRandomCompany = async (req, res) => {
             return res.status(404).json({ message: "No hay empresas disponibles en este momento." });
         }
 
-        // Seleccionamos una empresa al azar del lote ya filtrado
+        //  Seleccionamos una empresa aleatoria del lote filtrado
         const randomCompany = filtered[Math.floor(Math.random() * filtered.length)];
 
-        // Si no está asignada, la asignamos
+        //  Si no está asignada, la asignamos al usuario
         if (!randomCompany.assignedId) {
             await Company.update(
                 { assignedId: userId, use: true },
@@ -592,37 +599,52 @@ const getRandomCompany = async (req, res) => {
         console.error("Error obteniendo empresa aleatoria:", error);
         res.status(500).json({ message: "Error interno del servidor." });
     }
-};
+}
+
 const getSelectCompanyToCallById = async (req, res) => {
     const { companyId } = req.params;
+
     try {
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
 
-        // Buscar la empresa específica con sus llamadas asociadas
+        // Traer los IDs de las empresas eliminadas
+        const deletedCompanies = await companyDelete.findAll({
+            attributes: ['id'],
+        });
+        const excludedIds = deletedCompanies.map(dc => dc.id);
+
+        // Buscar la empresa específica excluyendo las eliminadas
         const company = await Company.findOne({
-            where: { id: companyId },
-            include: [{
-                model: Call,
-                as: 'calls',
-                attributes: ['date', 'phone'],
-                required: false
-            },{
-                model: Report,  // Relación con Report
-                as: 'reports',
-                attributes: ['id'], // Solo traemos el ID del reporte
-                required: false // Esto permite traer empresas con o sin reportes
-            },]
+            where: {
+                id: companyId,
+                id: { [Op.notIn]: excludedIds }  // Excluir empresas eliminadas
+            },
+            include: [
+                {
+                    model: Call,
+                    as: 'calls',
+                    attributes: ['date', 'phone'],
+                    required: false
+                },
+                {
+                    model: Report,
+                    as: 'reports',
+                    attributes: ['id'],
+                    required: false
+                }
+            ]
         });
 
         if (!company) {
-            return res.status(404).json({ message: "Empresa no encontrada" });
+            return res.status(404).json({ message: "Empresa no encontrada o ha sido eliminada." });
         }
+
         // Verificar que no tenga reportes
         if (company.reports && company.reports.length > 0) {
             return res.status(400).json({ message: "Esta empresa tiene reportes y no es elegible." });
         }
-        
+
         // Contar llamadas por cada número de teléfono
         const callsByPhoneOne = company.calls.filter(call => call.phone === company.phoneNumberOne).length;
         const callsByPhoneTwo = company.calls.filter(call => call.phone === company.phoneNumberSecond).length;
@@ -641,23 +663,27 @@ const getSelectCompanyToCallById = async (req, res) => {
             callsByPhoneOne: companyData.callsByPhoneOne,
             callsByPhoneTwo: companyData.callsByPhoneTwo,
             callsToday: companyData.callsToday
-        })
+        });
+
         // Filtro 1: Verificar si aún tiene llamadas disponibles
         const remainingCallsPhoneOne = companyData.numberPhoneCallsOne - companyData.callsByPhoneOne;
         const remainingCallsPhoneTwo = companyData.numberPhoneCallsSecond - companyData.callsByPhoneTwo;
         if (remainingCallsPhoneOne <= 0 && remainingCallsPhoneTwo <= 0) {
             return res.status(400).json({ message: "La empresa ya ha alcanzado el límite de llamadas permitidas." });
         }
+
         // Filtro 2: No más de 3 llamadas hoy
         if (companyData.callsToday >= 3) {
             return res.status(400).json({ message: "La empresa ya ha recibido 3 llamadas hoy." });
         }
+
         res.json(companyData);
     } catch (error) {
         console.error("Error obteniendo empresa específica:", error);
         res.status(500).json({ message: "Error interno del servidor." });
     }
-}
+};
+
 
 export {
     createCompany,

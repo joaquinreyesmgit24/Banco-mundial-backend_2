@@ -13,6 +13,7 @@ import Rescheduled from './Rescheduled.js'
 import Report from './Report.js'
 import Country from './Country.js'
 import Region from './Region.js'
+import companyDelete from './companiesDelete.js'
 
 
 Role.hasMany(User, {foreignKey:'roleId'})
@@ -59,5 +60,6 @@ export{
     Rescheduled,
     Report,
     Region,
-    Country
+    Country,
+    companyDelete
 }

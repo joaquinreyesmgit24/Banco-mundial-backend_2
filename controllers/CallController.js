@@ -1,6 +1,6 @@
 import { check, validationResult } from 'express-validator'
-import { Call, Incidence, Company, Rescheduled, Sequelize, Report, SampleSize, SampleSector, Country, Region, Panel }
-    from '../models/index.js'
+import { Call, Incidence, Company, Rescheduled, Sequelize, Report, SampleSize, SampleSector, Country, Region, Panel, companyDelete }
+from '../models/index.js'
 import { transporter } from '../helpers/emailTransporter.js';
 import db from '../config/db.js'
 import moment from 'moment'
@@ -262,10 +262,15 @@ const deleteCall = async (req, res) => {
         res.status(500).json({ error: 'Error al eliminar al usuario' });
     }
 }
-
 const listRescheduledByUserId = async (req, res) => {
     try {
         const { userId } = req.params;
+
+        // Traer los IDs de las empresas eliminadas
+        const deletedCompanies = await companyDelete.findAll({
+            attributes: ['id']
+        });
+        const excludedIds = deletedCompanies.map(dc => dc.id);
 
         // Traemos las reprogramaciones con sus llamadas y compañías relacionadas
         const rescheduleds = await Rescheduled.findAll({
@@ -279,7 +284,10 @@ const listRescheduledByUserId = async (req, res) => {
                         {
                             model: Company,
                             as: 'company',
-                            where: { assignedId: userId },
+                            where: {
+                                assignedId: userId,
+                                id: { [Op.notIn]: excludedIds } // Excluir compañías eliminadas
+                            },
                             required: true,
                             include: [
                                 {
@@ -340,6 +348,7 @@ const listRescheduledByUserId = async (req, res) => {
         res.status(500).json({ message: "Error interno del servidor." });
     }
 };
+
 const updateRescheduledStatus = async (req, res) => {
     try {
         const { rescheduledId } = req.params; // Obtén el ID de la reprogramación desde los parámetros de la URL

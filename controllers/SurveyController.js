@@ -1,4 +1,6 @@
 import { Op } from 'sequelize';
+import XLSX from 'xlsx';
+import dayjs from 'dayjs';
 import db from '../config/db.js';
 import { Survey, Report, Company, User, SampleSector, SampleSize, Country, Region, Panel } from '../models/index.js';
 
@@ -113,7 +115,13 @@ const createSurvey = async (req, res) => {
 
 const listSurveys = async (req, res) => {
     try {
+        const { page = 1, perPage = 5 } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(perPage);  // Asegura que page y perPage sean números
+        const limit = parseInt(perPage);
+
         const surveys = await Survey.findAll({
+            limit,  // Limita el número de resultados
+            offset,  // Desplazamiento basado en la página
             include: [
                 {
                     model: Company,  // Relaciona la tabla surveys con la tabla companies
@@ -126,10 +134,72 @@ const listSurveys = async (req, res) => {
                 }
             ]
         });
-        res.status(200).json({ surveys });
+
+        const totalSurveys = await Survey.count();
+        res.status(200).json({ 
+            surveys,
+            pagination: {
+                totalSurveys,
+                totalPages: Math.ceil(totalSurveys / perPage),
+                currentPage: parseInt(page),
+                perPage: parseInt(perPage),
+            }
+        });
     } catch (error) {
         res.status(500).json({ error: 'Error al listar las encuestas' });
     }
 }
 
-export { createSurvey, listSurveys };
+const downloadSurveys = async (req, res) => {
+    try {
+        const surveys = await Survey.findAll({
+            include: [
+                {
+                    model: Company,
+                    as: 'company',
+                    include: [{ model: User, as: 'user' }],
+                },
+            ],
+        });
+
+        const formattedData = surveys.map(survey => ({
+            'Id': survey.id,
+            'Q_1 - 1. Es de propiedad total del gobierno central, regional o municipal': survey.Q_1,
+            'Q_2 - 2. Por favor dígame ¿qué actividad representa la mayor proporción de las ventas anuales?': survey.Q_2,
+            'Q_3 - 3. ¿Cuántos trabajadores tiene este establecimiento?': survey.Q_3,
+            'Q_4 - FECHA DE LA CITA (OBLIGATORIO):': dayjs(survey.Q_4).isValid() ? dayjs(survey.Q_4).format('DD-MM-YYYY') : '',
+            'Q_5 - HORA (OBLIGATORIO):': survey.Q_5,
+            'Q_6 - NOMBRE DEL ENTREVISTADO (OBLIGATORIO):': survey.Q_6,
+            'Q_7 - CARGO DEL ENTREVISTADO (OBLIGATORIO)': survey.Q_7,
+            'Q_8 - CORREO DEL ENTREVISTADO (OBLIGATORIO)': survey.Q_8,
+            'Q_9 - CELULAR DEL ENTREVISTADO (OPCIONAL):': survey.Q_9,
+            'Rut de la Empresa': survey.company?.rut || '',
+            'Nombre de la Empresa': survey.company?.name || '',
+            'Código de la Empresa': survey.company?.code || '',
+            'Encuestador': survey.company?.user?.username || '',
+            'Estado': survey.status,
+            'Fecha': dayjs(survey.createdAt).format('DD-MM-YYYY HH:mm:ss'),
+        }));
+
+        // Crear hoja y libro de Excel
+        const ws = XLSX.utils.json_to_sheet(formattedData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Encuestas');
+
+        // Convertir a buffer
+        const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+
+        // Configurar headers de descarga
+        res.setHeader('Content-Disposition', 'attachment; filename="Encuestas.xlsx"');
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        // Enviar archivo
+        res.send(buffer);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error al generar el archivo Excel.' });
+    }
+}
+
+
+export { createSurvey, listSurveys, downloadSurveys };

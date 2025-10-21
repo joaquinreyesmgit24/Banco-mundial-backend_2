@@ -223,7 +223,8 @@ const listCallsByCompany = async (req, res) => {
                     model: Incidence,
                     required: true // Si quieres que las llamadas sin incidencia también aparezcan
                 },
-            ]
+            ],
+            order: [['date', 'DESC']] // Ordena por date en orden descendente (más reciente primero)
         });
         res.status(200).json({ calls });
     } catch (error) {
@@ -254,7 +255,8 @@ const deleteCall = async (req, res) => {
                     model: Incidence,
                     required: true // Si quieres que las llamadas sin incidencia también aparezcan
                 },
-            ]
+            ],
+            order: [['date', 'DESC']] // Ordena por date en orden descendente (más reciente primero)
         });
 
         res.status(200).json({ msg: 'Llamada eliminada correctamente', calls })
@@ -305,8 +307,9 @@ const listRescheduledByUserId = async (req, res) => {
                                         {
                                             model: Rescheduled,
                                             as: 'rescheduleds',
-                                            attributes: ['id'],
-                                            required: false
+                                            attributes: ['id','createdAt'],
+                                            required: false,
+                                            order: [['createdAt', 'DESC']]
                                         }
                                     ]
                                 }
@@ -349,25 +352,6 @@ const listRescheduledByUserId = async (req, res) => {
     }
 };
 
-const updateRescheduledStatus = async (req, res) => {
-    try {
-        const { rescheduledId } = req.params; // Obtén el ID de la reprogramación desde los parámetros de la URL
-        // Buscar la reprogramación por su ID y actualizar el estado a 'false'
-        const rescheduled = await Rescheduled.update(
-            { status: false }, // Establece el estado a 'false'
-            { where: { id: rescheduledId } } // Filtra por el ID de la reprogramación
-        );
-
-        if (rescheduled[0] === 0) { // Si no se encontró la reprogramación
-            return res.status(404)
-        }
-
-        res.status(200).json({ message: "No se puede contactar" });
-    } catch (error) {
-        console.error('Error al actualizar el estado de la reprogramación:', error);
-        res.status(500).json({ message: "Error interno del servidor" });
-    }
-}
 const deleteRescheduled = async (req, res) => {
         try {
         const { rescheduledId, userId } = req.params;
@@ -409,8 +393,9 @@ const deleteRescheduled = async (req, res) => {
                                         {
                                             model: Rescheduled,
                                             as: 'rescheduleds',
-                                            attributes: ['id'],
-                                            required: false
+                                            attributes: ['id', 'createdAt'],
+                                            required: false,
+                                            order: [['createdAt', 'DESC']]
                                         }
                                     ]
                                 }
@@ -418,9 +403,9 @@ const deleteRescheduled = async (req, res) => {
                         }
                     ]
                 }
-            ],
-            subQuery: false
-        });
+                ],
+                subQuery: false
+            });
 
         // Aplicar el mismo post-filtro de disponibilidad
         const filtered = rescheduleds.filter(r => {
@@ -456,7 +441,6 @@ export {
     listCallsByCompany,
     deleteCall,
     listRescheduledByUserId,
-    updateRescheduledStatus,
     sendEmail,
     deleteRescheduled
 }

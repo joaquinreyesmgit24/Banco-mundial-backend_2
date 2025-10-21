@@ -534,6 +534,7 @@ const getRandomCompany = async (req, res) => {
                     as: 'calls',
                     attributes: ['date', 'phone'],
                     required: false,
+                    order: [['date', 'DESC']],
                     include: [
                         {
                             model: Rescheduled,
@@ -625,7 +626,8 @@ const getSelectCompanyToCallById = async (req, res) => {
                     model: Call,
                     as: 'calls',
                     attributes: ['date', 'phone'],
-                    required: false
+                    required: false,
+                    order: [['date', 'DESC']]
                 },
                 {
                     model: Report,

@@ -22,7 +22,8 @@ const listReports = async (req, res) => {
                         }
                     ]
                 }
-            ]
+            ],
+            order: [['createdAt', 'DESC']] // Ordena los reportes por 'createdAt' en orden descendente (más reciente primero)
         });
 
         // Contar el total de reportes para calcular el número total de páginas
@@ -53,8 +54,8 @@ const downloadReports = async (req, res) => {
           as: 'company',
           include: [{ model: User, as: 'user' }],
         },
-        // Si tienes otras relaciones (por ejemplo Panel), agrégalas aquí
       ],
+      order: [['createdAt', 'DESC']] // Ordena los reportes por 'createdAt' en orden descendente (más reciente primero)
     });
 
     const eligibilityDescriptions = {

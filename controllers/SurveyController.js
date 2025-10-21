@@ -132,7 +132,8 @@ const listSurveys = async (req, res) => {
                         }
                     ]
                 }
-            ]
+            ],
+            order: [['createdAt', 'DESC']]
         });
 
         const totalSurveys = await Survey.count();
@@ -160,6 +161,7 @@ const downloadSurveys = async (req, res) => {
                     include: [{ model: User, as: 'user' }],
                 },
             ],
+            order: [['createdAt', 'DESC']]
         });
 
         const formattedData = surveys.map(survey => ({

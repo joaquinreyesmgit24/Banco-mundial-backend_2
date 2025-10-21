@@ -272,6 +272,7 @@ const listRescheduledByUserId = async (req, res) => {
         const deletedCompanies = await companyDelete.findAll({
             attributes: ['id']
         });
+        console.log(deletedCompanies)
         const excludedIds = deletedCompanies.map(dc => dc.id);
 
         // Traemos las reprogramaciones con sus llamadas y compañías relacionadas

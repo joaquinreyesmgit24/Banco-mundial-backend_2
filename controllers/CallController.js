@@ -272,7 +272,6 @@ const listRescheduledByUserId = async (req, res) => {
         const deletedCompanies = await companyDelete.findAll({
             attributes: ['id']
         });
-        console.log(deletedCompanies)
         const excludedIds = deletedCompanies.map(dc => dc.id);
 
         // Traemos las reprogramaciones con sus llamadas y compañías relacionadas
@@ -364,6 +363,11 @@ const deleteRescheduled = async (req, res) => {
         }
         await rescheduled.destroy();
 
+        const deletedCompanies = await companyDelete.findAll({
+            attributes: ['id']
+        });
+        const excludedIds = deletedCompanies.map(dc => dc.id);
+
         // Traer las reprogramaciones filtradas por usuario
         const rescheduleds = await Rescheduled.findAll({
             attributes: { exclude: ['status'] },
@@ -376,7 +380,10 @@ const deleteRescheduled = async (req, res) => {
                         {
                             model: Company,
                             as: 'company',
-                            where: { assignedId: userId },
+                            where: {
+                                assignedId: userId,
+                                id: { [Op.notIn]: excludedIds } // Excluir compañías eliminadas
+                            },
                             required: true,
                             include: [
                                 {
@@ -394,7 +401,7 @@ const deleteRescheduled = async (req, res) => {
                                         {
                                             model: Rescheduled,
                                             as: 'rescheduleds',
-                                            attributes: ['id', 'createdAt'],
+                                            attributes: ['id','createdAt'],
                                             required: false,
                                             order: [['createdAt', 'DESC']]
                                         }
@@ -404,9 +411,9 @@ const deleteRescheduled = async (req, res) => {
                         }
                     ]
                 }
-                ],
-                subQuery: false
-            });
+            ],
+            subQuery: false
+        });
 
         // Aplicar el mismo post-filtro de disponibilidad
         const filtered = rescheduleds.filter(r => {

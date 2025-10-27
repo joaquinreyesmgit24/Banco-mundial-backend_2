@@ -23,10 +23,10 @@ const listReports = async (req, res) => {
                     ]
                 }
             ],
-            order: [['createdAt', 'DESC']] // Ordena los reportes por 'createdAt' en orden descendente (más reciente primero)
+            order: [['createdAt', 'DESC']]
         });
 
-        // Contar el total de reportes para calcular el número total de páginas
+
         const totalReports = await Report.count();
 
         // Responder con los datos de los reportes y la información de paginación

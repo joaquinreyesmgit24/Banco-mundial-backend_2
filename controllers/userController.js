@@ -7,6 +7,10 @@ import cloudinary from '../config/cloudinary.js'
 
 const register = async (req,res)=>{
     try{
+        const { page = 1, perPage = 5 } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(perPage);  // Asegura que page y perPage sean números
+        const limit = parseInt(perPage);
+
         //Validation
         await check('username').notEmpty().withMessage('El nombre de usuario no puede ir vacio').run(req)
         await check('password').isLength({ min: 6 }).withMessage('La contraseña debe ser de al menos 6 caracteres').run(req)
@@ -55,10 +59,25 @@ const register = async (req,res)=>{
             }
         }
         const users = await User.findAll({
+            limit,  // Limita el número de resultados
+            offset,  // Desplazamiento basado en la página
+            required:true,
             include: Role,
-            required:true
-            });
-        res.status(200).json({msg: 'Usuario creado correctamente', user, users })
+            order: [['createdAt', 'DESC']]
+        });
+        const totalUsers= await User.count();
+
+        res.status(200).json({
+            user,
+            users,
+            msg: 'Usuario creado correctamente',
+            pagination: {
+            totalUsers,
+            totalPages: Math.ceil(totalUsers / perPage),
+            currentPage: parseInt(page),
+            perPage: parseInt(perPage),
+            } 
+        });
     }catch(error){
         res.status(500).json({ error: 'Error al crear el usuario' })
     }
@@ -69,11 +88,27 @@ const logout = (req, res) => {
 };
 const listUsers = async (req, res) => {
     try {
+        const { page = 1, perPage = 5 } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(perPage);  // Asegura que page y perPage sean números
+        const limit = parseInt(perPage);
+
         const users = await User.findAll({
+            limit,  // Limita el número de resultados
+            offset,  // Desplazamiento basado en la página
             required:true,
             include: Role,
+            order: [['createdAt', 'DESC']]
         });
-        res.status(200).json({ users });
+        const totalUsers= await User.count();
+        res.status(200).json({ 
+                users,
+                pagination: {
+                    totalUsers,
+                    totalPages: Math.ceil(totalUsers / perPage),
+                    currentPage: parseInt(page),
+                    perPage: parseInt(perPage),
+                } 
+        });
     } catch (error) {
         res.status(500).json({ error: 'Error al listar los usuarios' });
     }
@@ -115,6 +150,9 @@ const authenticate = async (req, res) => {
 const updateUser = async (req, res) => {
     try {
         const { username, password, status, roleId, repeat_password } = req.body;
+        const { page = 1, perPage = 5 } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(perPage);  // Asegura que page y perPage sean números
+        const limit = parseInt(perPage);
 
         await check('username').notEmpty().withMessage('El nombre no puede ir vacío').run(req);
         if (password || repeat_password) {
@@ -173,11 +211,23 @@ const updateUser = async (req, res) => {
         await user.save();
 
         const users = await User.findAll({
-            required: true,
+            limit,  // Limita el número de resultados
+            offset,  // Desplazamiento basado en la página
+            required:true,
             include: Role,
+            order: [['createdAt', 'DESC']]
         });
-
-        res.status(200).json({ msg: 'Usuario actualizado correctamente', users });
+        const totalUsers= await User.count();
+        res.status(200).json({ 
+                msg: 'Usuario actualizado correctamente',
+                users,
+                pagination: {
+                    totalUsers,
+                    totalPages: Math.ceil(totalUsers / perPage),
+                    currentPage: parseInt(page),
+                    perPage: parseInt(perPage),
+                } 
+        });
 
     } catch (error) {
         res.status(500).json({ error: 'Error al actualizar al usuario' });
@@ -194,16 +244,35 @@ const listRoles = async (req, res) => {
 const deleteUser = async (req,res)=>{
     try{
         const {userId} = req.params;
+        const { page = 1, perPage = 5 } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(perPage);  // Asegura que page y perPage sean números
+        const limit = parseInt(perPage);
+
         const user = await User.findOne({ where: { id:userId } })
         if (!user) {
             return res.status(400).json({ error: 'El usuario no existe' });
         }
         await user.destroy()
+
         const users = await User.findAll({
+            limit,  // Limita el número de resultados
+            offset,  // Desplazamiento basado en la página
+            required:true,
             include: Role,
-            required:true
+            order: [['createdAt', 'DESC']]
         });
-        res.status(200).json({ msg: 'Usuario eliminado correctamente', user, users })
+        const totalUsers= await User.count();
+        res.status(200).json({ 
+                msg: 'Usuario eliminado correctamente',
+                user,
+                users,
+                pagination: {
+                    totalUsers,
+                    totalPages: Math.ceil(totalUsers / perPage),
+                    currentPage: parseInt(page),
+                    perPage: parseInt(perPage),
+                } 
+        });
     } catch(error){
         res.status(500).json({ error: 'Error al eliminar al usuario' });
     }

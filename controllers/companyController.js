@@ -29,6 +29,10 @@ const createCompany = async (req, res) => {
             web,
             regionId} = req.body;
 
+        const { page = 1, perPage = 5 } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(perPage);  // Asegura que page y perPage sean números
+        const limit = parseInt(perPage);
+
         await check('code').notEmpty().withMessage('El id de la empresa no puede estar vacio').run(req)
         await check('rut').notEmpty().withMessage('El rut de la empresa no puede estar vacio').run(req)
         await check('name').notEmpty().withMessage('El nombre de la empresa no puede estar vacio').run(req)
@@ -102,7 +106,10 @@ const createCompany = async (req, res) => {
             regionId:regionId,
             use: false });
 
+
         const companies = await Company.findAll({
+            limit,  // Limita el número de resultados
+            offset,  // Desplazamiento basado en la página
             include: [
                 {
                     model: SampleSize,
@@ -124,10 +131,23 @@ const createCompany = async (req, res) => {
                     model: Region,
                     required: true
                 },
-            ]
+            ],
+            order: [['createdAt', 'DESC']]
         });
-        res.status(200).json({ msg: 'Empresa creada correctamente', company, companies })
 
+        const totalCompanies= await Company.count();
+
+        res.status(200).json({
+            msg: 'Empresa creada correctamente',
+            company,
+            companies,
+            pagination: {
+                totalCompanies,
+                totalPages: Math.ceil(totalCompanies / perPage),
+                currentPage: parseInt(page),
+                perPage: parseInt(perPage),
+            }
+        });
     } catch (error) {
         res.status(500).json({ error: 'Error al crear la empresa' })
     }
@@ -299,6 +319,10 @@ const updateCompany = async (req, res) => {
             panelId,
             regionId} = req.body;
 
+        const { page = 1, perPage = 5 } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(perPage);  // Asegura que page y perPage sean números
+        const limit = parseInt(perPage);
+
         await check('code').notEmpty().withMessage('El id de la empresa no puede estar vacio').run(req)
         await check('rut').notEmpty().withMessage('El rut de la empresa no puede estar vacio').run(req)
         await check('name').notEmpty().withMessage('El nombre de la empresa no puede estar vacio').run(req)
@@ -367,6 +391,8 @@ const updateCompany = async (req, res) => {
         await company.save();
 
         const companies = await Company.findAll({
+            limit,  // Limita el número de resultados
+            offset,  // Desplazamiento basado en la página
             include: [
                 {
                     model: SampleSize,
@@ -388,10 +414,23 @@ const updateCompany = async (req, res) => {
                     model: Region,
                     required: true
                 },
-            ]
+            ],
+            order: [['createdAt', 'DESC']]
         });
 
-        res.status(200).json({ msg: 'Empresa actualizada correctamente', company, companies })
+        const totalCompanies= await Company.count();
+
+        res.status(200).json({
+            msg: 'Empresa actualizada correctamente',
+            company,
+            companies,
+            pagination: {
+                totalCompanies,
+                totalPages: Math.ceil(totalCompanies / perPage),
+                currentPage: parseInt(page),
+                perPage: parseInt(perPage),
+            }
+        });
 
     } catch (error) {
         res.status(500).json({ error: 'Error al actualizar la empresa' })
@@ -429,9 +468,9 @@ const listCompanies = async (req, res) => {
                     required: true
                 },
             ],
-            order: [['createdAt', 'DESC']] // Ordena los reportes por 'createdAt' en orden descendente (más reciente primero)
+            order: [['createdAt', 'DESC']]
         });
-        // Contar el total de reportes para calcular el número total de páginas
+
         const totalCompanies= await Company.count();
 
         res.status(200).json({ 
@@ -483,12 +522,18 @@ const listRegions = async (req, res) => {
 const deleteCompany = async (req, res) => {
     try {
         const { companyId } = req.params;
+        const { page = 1, perPage = 5 } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(perPage);  // Asegura que page y perPage sean números
+        const limit = parseInt(perPage);
+
         const company = await Company.findOne({ where: { id: companyId } })
         if (!company) {
             return res.status(400).json({ error: 'La empresa no existe' });
         }
         await company.destroy()
         const companies = await Company.findAll({
+            limit,  
+            offset, 
             include: [
                 {
                     model: SampleSize,
@@ -510,9 +555,23 @@ const deleteCompany = async (req, res) => {
                     model: Region,
                     required: true
                 },
-            ]
+            ],
+            order: [['createdAt', 'DESC']]
         });
-        res.status(200).json({ msg: 'Empresa eliminada correctamente', company, companies })
+
+        const totalCompanies= await Company.count();
+
+        res.status(200).json({ 
+            companies,
+            company,
+            msg: 'Empresa eliminada correctamente',
+            pagination: {
+                totalCompanies,
+                totalPages: Math.ceil(totalCompanies / perPage),
+                currentPage: parseInt(page),
+                perPage: parseInt(perPage),
+            }
+        });
     } catch (error) {
         res.status(500).json({ error: 'Error al eliminar la empresa' });
     }

@@ -399,7 +399,14 @@ const updateCompany = async (req, res) => {
 }
 const listCompanies = async (req, res) => {
     try {
+        const { page = 1, perPage = 5 } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(perPage);  // Asegura que page y perPage sean números
+        const limit = parseInt(perPage);
+
+
         const companies = await Company.findAll({
+            limit,  // Limita el número de resultados
+            offset,  // Desplazamiento basado en la página
             include: [
                 {
                     model: SampleSize,
@@ -421,9 +428,21 @@ const listCompanies = async (req, res) => {
                     model: Region,
                     required: true
                 },
-            ]
+            ],
+            order: [['createdAt', 'DESC']] // Ordena los reportes por 'createdAt' en orden descendente (más reciente primero)
         });
-        res.status(200).json({ companies });
+        // Contar el total de reportes para calcular el número total de páginas
+        const totalCompanies= await Company.count();
+
+        res.status(200).json({ 
+            companies,
+            pagination: {
+                totalCompanies,
+                totalPages: Math.ceil(totalCompanies / perPage),
+                currentPage: parseInt(page),
+                perPage: parseInt(perPage),
+            }
+        });
     } catch (error) {
         res.status(500).json({ error: 'Error al listar las empresas' });
     }

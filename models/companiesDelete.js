@@ -1,12 +1,7 @@
 import { DataTypes } from 'sequelize';
 import db from '../config/db.js'
-
-const companyDelete  = db.define('companiesDelete',{
-        id: {
-            type: DataTypes.INTEGER,
-            allowNull: false,
-            primaryKey: true
-        }
+ 
+const CompanyDelete  = db.define('companiesDelete',{
 })
-
-export default companyDelete
+ 
+export default CompanyDelete

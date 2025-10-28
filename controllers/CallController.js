@@ -1,5 +1,5 @@
 import { check, validationResult } from 'express-validator'
-import { Call, Incidence, Company, Rescheduled, Sequelize, Report, SampleSize, SampleSector, Country, Region, Panel, companyDelete }
+import { Call, Incidence, Company, Rescheduled, Sequelize, Report, SampleSize, SampleSector, Country, Region, Panel, CompanyDelete }
 from '../models/index.js'
 import { transporter } from '../helpers/emailTransporter.js';
 import db from '../config/db.js'
@@ -268,12 +268,6 @@ const listRescheduledByUserId = async (req, res) => {
     try {
         const { userId } = req.params;
 
-        // Traer los IDs de las empresas eliminadas
-        const deletedCompanies = await companyDelete.findAll({
-            attributes: ['id']
-        });
-        const excludedIds = deletedCompanies.map(dc => dc.id);
-
         // Traemos las reprogramaciones con sus llamadas y compañías relacionadas
         const rescheduleds = await Rescheduled.findAll({
             attributes: { exclude: ['status'] },
@@ -288,10 +282,14 @@ const listRescheduledByUserId = async (req, res) => {
                             as: 'company',
                             where: {
                                 assignedId: userId,
-                                id: { [Op.notIn]: excludedIds } // Excluir compañías eliminadas
                             },
                             required: true,
                             include: [
+                                {
+                                    model: CompanyDelete,
+                                    as: 'companiesDelete',
+                                    required: false, // LEFT JOIN
+                                },
                                 {
                                     model: Report,
                                     as: 'reports',
@@ -318,6 +316,9 @@ const listRescheduledByUserId = async (req, res) => {
                     ]
                 }
             ],
+            where: {
+                '$call.company.companiesDelete.id$': null
+            },
             subQuery: false
         });
 
@@ -363,11 +364,6 @@ const deleteRescheduled = async (req, res) => {
         }
         await rescheduled.destroy();
 
-        const deletedCompanies = await companyDelete.findAll({
-            attributes: ['id']
-        });
-        const excludedIds = deletedCompanies.map(dc => dc.id);
-
         // Traer las reprogramaciones filtradas por usuario
         const rescheduleds = await Rescheduled.findAll({
             attributes: { exclude: ['status'] },
@@ -382,10 +378,14 @@ const deleteRescheduled = async (req, res) => {
                             as: 'company',
                             where: {
                                 assignedId: userId,
-                                id: { [Op.notIn]: excludedIds } // Excluir compañías eliminadas
                             },
                             required: true,
                             include: [
+                                {
+                                    model: CompanyDelete,
+                                    as: 'companiesDelete',
+                                    required: false // LEFT JOIN (permite null)
+                                },
                                 {
                                     model: Report,
                                     as: 'reports',
@@ -412,6 +412,9 @@ const deleteRescheduled = async (req, res) => {
                     ]
                 }
             ],
+            where: {
+                '$call.company.companiesDelete.id$': null
+            },
             subQuery: false
         });
 

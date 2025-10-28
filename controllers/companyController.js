@@ -1,5 +1,5 @@
 import { check, validationResult } from 'express-validator'
-import { Company, SampleSize, SampleSector, Panel,Call, Country,Region, Sequelize, Report, Rescheduled, companyDelete } from '../models/index.js'
+import { Company, SampleSize, SampleSector, Panel,Call, Country,Region, Sequelize, Report, Rescheduled, CompanyDelete } from '../models/index.js'
 import moment from 'moment'
 import { Op } from 'sequelize';
 import xlsx from 'xlsx';
@@ -584,23 +584,22 @@ const getRandomCompany = async (req, res) => {
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
 
-        // Traer los IDs de las empresas que no deben mostrarse
-        const deletedCompanies = await companyDelete.findAll({
-            attributes: ['id'],
-        });
-
-        const excludedIds = deletedCompanies.map(dc => dc.id);
 
         //  Consulta optimizada: excluir esas empresas desde el principio
         const companies = await Company.findAll({
             where: {
-                id: { [Op.notIn]: excludedIds },
                 [Op.or]: [
                     { assignedId: userId },
                     { assignedId: null }
-                ]
+                ],
+                 '$companiesDelete.id$': null // Excluir empresas con registro en CompanyDelete
             },
             include: [
+                 {
+                    model: CompanyDelete,
+                    as: 'companiesDelete',
+                    required: false // LEFT JOIN (permite null)
+                },
                 {
                     model: Report,
                     as: 'reports',
@@ -687,19 +686,19 @@ const getSelectCompanyToCallById = async (req, res) => {
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
 
-        // Traer los IDs de las empresas eliminadas
-        const deletedCompanies = await companyDelete.findAll({
-            attributes: ['id'],
-        });
-        const excludedIds = deletedCompanies.map(dc => dc.id);
 
         // Buscar la empresa específica excluyendo las eliminadas
         const company = await Company.findOne({
             where: {
                 id: companyId,
-                id: { [Op.notIn]: excludedIds }  // Excluir empresas eliminadas
+                '$companiesDelete.id$': null // Excluir si tiene registro en CompanyDelete
             },
             include: [
+                {
+                    model: CompanyDelete,
+                    as: 'companiesDelete',
+                    required: false // LEFT JOIN (permite null)
+                },
                 {
                     model: Call,
                     as: 'calls',

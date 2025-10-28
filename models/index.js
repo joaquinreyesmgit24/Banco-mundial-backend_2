@@ -13,7 +13,7 @@ import Rescheduled from './Rescheduled.js'
 import Report from './Report.js'
 import Country from './Country.js'
 import Region from './Region.js'
-import companyDelete from './companiesDelete.js'
+import CompanyDelete from './CompaniesDelete.js'
 
 
 Role.hasMany(User, {foreignKey:'roleId'})
@@ -42,7 +42,8 @@ Country.hasMany(Company, {foreignKey: 'countryId'})
 Company.belongsTo(Country, {foreignKey:'countryId'})
 Region.hasMany(Company, {foreignKey: 'regionId'})
 Company.belongsTo(Region, {foreignKey:'regionId'})
-
+Company.hasOne(CompanyDelete, { foreignKey: 'companyId'});
+CompanyDelete.belongsTo(Company, { foreignKey: 'companyId' });
 
 
 export{
@@ -61,5 +62,5 @@ export{
     Report,
     Region,
     Country,
-    companyDelete
+    CompanyDelete
 }

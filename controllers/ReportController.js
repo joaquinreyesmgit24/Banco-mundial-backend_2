@@ -90,6 +90,7 @@ const downloadReports = async (req, res) => {
 
     const formattedData = reports.map(report => ({
       'Id': report.id,
+      'Code': report.company.code || '',
       'Nombre de la empresa': report.company?.name || report.companyName || '',
       'Nombre del País': report.countryName || '',
       'Código del País': report.countryCode || '',

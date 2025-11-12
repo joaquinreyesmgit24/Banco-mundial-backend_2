@@ -595,7 +595,7 @@ const getRandomCompany = async (req, res) => {
                  '$companiesDelete.id$': null // Excluir empresas con registro en CompanyDelete
             },
             include: [
-                 {
+                {
                     model: CompanyDelete,
                     as: 'companiesDelete',
                     required: false // LEFT JOIN (permite null)
